@@ -2,23 +2,25 @@ name: Deploy Workflow
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [closed]
+    branches:
+      - main
     paths:
       - 'todo-check.yml'
 
 jobs:
   sync-workflow:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.head_ref }}
+          ref: main
 
-      - name: Check if todo-check.yml exists and has changes
+      - name: Check if todo-check.yml exists
         id: check-file
         run: |
           if [ -f "todo-check.yml" ]; then
@@ -37,11 +39,11 @@ jobs:
           cp todo-check.yml .github/workflows/todo-check.yml
           echo "Synchronized todo-check.yml with .github/workflows/todo-check.yml"
 
-      - name: Commit and push changes to the same PR
+      - name: Commit and push changes to main
         if: steps.check-file.outputs.file_exists == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .github/workflows/todo-check.yml
-          git commit -m "Sync todo-check.yml to workflows directory" || echo "No changes to commit"
+          git commit -m "Sync todo-check.yml to workflows directory after merge" || echo "No changes to commit"
           git push

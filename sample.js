@@ -10,7 +10,7 @@ function exampleFunction() {
   return tempValue;
 }
 
-// TODO: Refactor this entire file for kno-5678
+// TODO: Refactor this entire file for (nothing for now)
 function anotherFunction() {
   console.log('Added a log statement for a new KNO-5678 test');
   return 'placeholder';
