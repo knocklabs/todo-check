@@ -1,29 +1,47 @@
 name: Deploy Workflow
 
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - 'todo-check.yml'
 
 jobs:
-  deploy:
+  sync-workflow:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
 
-      - name: Create .github/workflows directory if it doesn't exist
+      - name: Check if todo-check.yml exists and has changes
+        id: check-file
+        run: |
+          if [ -f "todo-check.yml" ]; then
+            echo "file_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "file_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create .github/workflows directory if needed
+        if: steps.check-file.outputs.file_exists == 'true'
         run: mkdir -p .github/workflows
-      
-      - name: Copy workflow file
-        run: cp todo-check.yml .github/workflows/todo-check.yml
-      
-      - name: Commit changes
+
+      - name: Copy workflow file to correct location
+        if: steps.check-file.outputs.file_exists == 'true'
+        run: |
+          cp todo-check.yml .github/workflows/todo-check.yml
+          echo "Synchronized todo-check.yml with .github/workflows/todo-check.yml"
+
+      - name: Commit and push changes to the same PR
+        if: steps.check-file.outputs.file_exists == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add .github/workflows/todo-check.yml
-          git commit -m "Deploy updated todo-check workflow" || echo "No changes to commit"
+          git commit -m "Sync todo-check.yml to workflows directory" || echo "No changes to commit"
           git push
