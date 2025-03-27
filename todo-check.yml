@@ -34,7 +34,7 @@ jobs:
         id: search-todos
         run: |
           if [ -n "$ISSUE_NUMBER" ]; then
-            TODOS=$(grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.md" --include="*.html" --include="*.css" "TODO.*KNO-$ISSUE_NUMBER\|TODO.*kno-$ISSUE_NUMBER" . || true)
+            TODOS=$(grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.html" --include="*.css" --exclude="README.md" --exclude="**/README.md" "TODO.*KNO-$ISSUE_NUMBER\|TODO.*kno-$ISSUE_NUMBER" . || true)
             echo "TODOS<<EOF" >> $GITHUB_ENV
             echo "$TODOS" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
@@ -65,9 +65,33 @@ jobs:
               commentBody = `## TODO Check Results\n\nCouldn't extract issue number from PR title or branch name. Looking for pattern KNO-XXXX.`;
             }
             
-            github.rest.issues.createComment({
+            // Get all comments on the PR
+            const comments = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody
+              repo: context.repo.repo
             });
+            
+            // Find existing comment from this action
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('TODO Check Results')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              // Create new comment if none exists
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
