@@ -65,9 +65,33 @@ jobs:
               commentBody = `## TODO Check Results\n\nCouldn't extract issue number from PR title or branch name. Looking for pattern KNO-XXXX.`;
             }
             
-            github.rest.issues.createComment({
+            // Get all comments on the PR
+            const comments = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody
+              repo: context.repo.repo
             });
+            
+            // Find existing comment from this action
+            const botComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('TODO Check Results')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              // Create new comment if none exists
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
