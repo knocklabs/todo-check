@@ -5,13 +5,13 @@ function exampleFunction() {
   
   // TODO: This needs to be fixed in KNO-1234
   const tempValue = 'temporary implementation';
-  console.log('Added a log statement for KNO-5678 test');
   
   return tempValue;
 }
 
 // TODO: Refactor this entire file for kno-5678
 function anotherFunction() {
+  console.log('Added a log statement for a new KNO-5678 test');
   return 'placeholder';
 }
 
