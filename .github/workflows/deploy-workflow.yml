@@ -1,0 +1,29 @@
+name: Deploy Workflow
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'todo-check.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create .github/workflows directory if it doesn't exist
+        run: mkdir -p .github/workflows
+      
+      - name: Copy workflow file
+        run: cp todo-check.yml .github/workflows/todo-check.yml
+      
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .github/workflows/todo-check.yml
+          git commit -m "Deploy updated todo-check workflow" || echo "No changes to commit"
+          git push

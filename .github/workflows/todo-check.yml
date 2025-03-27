@@ -1,0 +1,73 @@
+name: TODO Issue Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-todos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: Extract issue number
+        id: extract-issue
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          BRANCH_NAME="${{ github.head_ref }}"
+          
+          # Try to find issue number in PR title first
+          if [[ "$PR_TITLE" =~ [Kk][Nn][Oo]-([0-9]+) ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+          # Then try branch name
+          elif [[ "$BRANCH_NAME" =~ [Kk][Nn][Oo]-([0-9]+) ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+          else
+            ISSUE_NUMBER=""
+          fi
+          
+          echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> $GITHUB_ENV
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+      
+      - name: Search for TODOs
+        id: search-todos
+        run: |
+          if [ -n "$ISSUE_NUMBER" ]; then
+            TODOS=$(grep -r --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.md" --include="*.html" --include="*.css" "TODO.*KNO-$ISSUE_NUMBER\|TODO.*kno-$ISSUE_NUMBER" . || true)
+            echo "TODOS<<EOF" >> $GITHUB_ENV
+            echo "$TODOS" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            
+            if [ -n "$TODOS" ]; then
+              echo "found=true" >> $GITHUB_OUTPUT
+            else
+              echo "found=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Comment on PR
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const todos = process.env.TODOS;
+            
+            let commentBody = "";
+            if (issueNumber && todos) {
+              commentBody = `## TODO Check Results\n\nFound TODOs mentioning issue KNO-${issueNumber}:\n\n\`\`\`\n${todos}\n\`\`\``;
+            } else if (issueNumber) {
+              commentBody = `## TODO Check Results\n\nNo TODOs found mentioning issue KNO-${issueNumber}.`;
+            } else {
+              commentBody = `## TODO Check Results\n\nCouldn't extract issue number from PR title or branch name. Looking for pattern KNO-XXXX.`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
